@@ -23,11 +23,12 @@ from ryu.lib.packet import ethernet, arp
 from ryu.lib.packet import ether_types
 
 
+nextLoad = 5
+paths = [0,0,0,0,0]
+
+
 class SimpleSwitch13(app_manager.RyuApp):
 	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-
-	nextLoad = 5
-	paths = [0,0,0,0,0]
 
 	def __init__(self, *args, **kwargs):
 		super(SimpleSwitch13, self).__init__(*args, **kwargs)
@@ -75,6 +76,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 	                              ev.msg.msg_len, ev.msg.total_len)
 #		paths = [0, 0, 0, 0, 0]
 #		nextLoad = 5
+		global paths
+		global nextLoad
 		msg = ev.msg
 		datapath = msg.datapath
 		ofproto = datapath.ofproto
@@ -94,7 +97,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		if(dstIP != '10.0.0.10' or
 	          (in_port != 1 and in_port != 2 and in_port != 3 and in_port != 4)):
-			print 'ignoring packet'
+			
+			
 			return
 
 		dpid = datapath.id
@@ -102,14 +106,15 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		print(dpid, src, dst, in_port, srcIP, dstIP)
 
-		if self.paths[in_port] != 0:
-			out_port = self.paths[in_port]
+		if paths[in_port] != 0:
+			out_port = paths[in_port]
 		else:
-			out_port = self.nextLoad
-			if self.nextLoad == 5:
-				self.nextLoad = 6
+			out_port = nextLoad
+			if nextLoad == 5:
+				nextLoad = 6
 			else:
-				self.nextLoad = 5
+				nextLoad = 5
+#		out_port = 5
 #		targIP = '10.0.0.5'
 		targIP = '10.0.0.{}'.format(out_port)
 		actions = [parser.OFPActionSetField(ipv4_dst=targIP)]
