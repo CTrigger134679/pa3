@@ -26,8 +26,8 @@ from ryu.lib.packet import ether_types
 class SimpleSwitch13(app_manager.RyuApp):
 	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-#    nextLoad = 5
-#    paths = [0,0,0,0,0]
+	nextLoad = 5
+	paths = [0,0,0,0,0]
 
 	def __init__(self, *args, **kwargs):
 		super(SimpleSwitch13, self).__init__(*args, **kwargs)
@@ -73,8 +73,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if ev.msg.msg_len < ev.msg.total_len:
 			self.logger.debug("packet truncated: only %s of %s bytes",
 	                              ev.msg.msg_len, ev.msg.total_len)
-		paths = [0, 0, 0, 0, 0]
-		nextLoad = 5
+#		paths = [0, 0, 0, 0, 0]
+#		nextLoad = 5
 		msg = ev.msg
 		datapath = msg.datapath
 		ofproto = datapath.ofproto
@@ -94,6 +94,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		if(dstIP != '10.0.0.10' or
 	          (in_port != 1 and in_port != 2 and in_port != 3 and in_port != 4)):
+			print 'ignoring packet'
 			return
 
 		dpid = datapath.id
@@ -101,28 +102,28 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		print(dpid, src, dst, in_port, srcIP, dstIP)
 
-		if paths[in_port] != 0:
-			out_port = paths[in_port]
+		if self.paths[in_port] != 0:
+			out_port = self.paths[in_port]
 		else:
-			out_port = nextLoad
-			if nextLoad == 5:
-				nextLoad = 6
+			out_port = self.nextLoad
+			if self.nextLoad == 5:
+				self.nextLoad = 6
 			else:
-				nextLoad = 5
-		targIP = '10.0.0.5'
-#		targIP = '10.0.0.{}'.format(out_port)
-		actions = [parser.OFPActionSetField(ipv4_dst=targIP)
+				self.nextLoad = 5
+#		targIP = '10.0.0.5'
+		targIP = '10.0.0.{}'.format(out_port)
+		actions = [parser.OFPActionSetField(ipv4_dst=targIP)]
 		actions += [parser.OFPActionOutput(out_port)]
 		match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, in_port=in_port, ipv4_dst='10.0.0.10')
 		self.add_flow(datapath, 1, match, actions)
 
-		actions = [parser.OFPActionSetField(ipv4_src='10.0.0.10')
+		actions = [parser.OFPActionSetField(ipv4_src='10.0.0.10')]
 		actions += [parser.OFPActionOutput(in_port)]
 		match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, in_port=out_port, ipv4_src=targIP)
 		self.add_flow(datapath, 1, match, actions)
 
-		targEth = '00:00:00:00:00:05'
-#		targEth = '00:00:00:00:00:0{}'.format(out_port)
+#		targEth = '00:00:00:00:00:05'
+		targEth = '00:00:00:00:00:0{}'.format(out_port)
 		e = ethernet.ethernet(dst=src, src=targEth, ethertype=ether_types.ETH_TYPE_ARP)
 		a = arp.arp(hwtype=1, proto=0x0800, hlen=6, plen=4, opcode=2, src_mac=targEth, 
 		            src_ip='10.0.0.10', dst_mac=src, dst_ip=srcIP)
@@ -131,6 +132,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		p.add_protocol(a)
 		p.serialize()
 
+		actions = [parser.OFPActionOutput(ofproto.OFPP_IN_PORT)]
 		out = parser.OFPPacketOut(datapath=datapath, buffer_id=ofproto.OFP_NO_BUFFER,
-	                                  in_port=ofproto.OFPP_IN_PORT, actions=actions, data=data)
+	                                  in_port=in_port, actions=actions, data=p.data)
 		datapath.send_msg(out)
