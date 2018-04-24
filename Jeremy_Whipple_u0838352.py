@@ -97,8 +97,27 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		if(dstIP != '10.0.0.10' or
 	          (in_port != 1 and in_port != 2 and in_port != 3 and in_port != 4)):
-			
-			
+			#handle arps from 5 and 6
+			if dstIP == '10.0.0.1':
+				mac = '00:00:00:00:00:01'
+			elif dstIP == '10.0.0.2':
+				mac = '00:00:00:00:00:02'
+			elif dstIP == '10.0.0.3':
+				mac = '00:00:00:00:00:03'
+			else:
+				mac = '00:00:00:00:00:04'
+			e = ethernet.ethernet(dst=src, src=mac, ethertype=ether_types.ETH_TYPE_ARP)
+			a = arp.arp(hwtype=1, proto=0x0800, hlen=6, plen=4, opcode=2, src_mac=mac, 
+			            src_ip=dstIP, dst_mac=src, dst_ip=srcIP)
+			p = packet.Packet()
+			p.add_protocol(e)
+			p.add_protocol(a)
+			p.serialize()
+
+			actions = [parser.OFPActionOutput(ofproto.OFPP_IN_PORT)]
+			out = parser.OFPPacketOut(datapath=datapath, buffer_id=ofproto.OFP_NO_BUFFER,
+		                                  in_port=in_port, actions=actions, data=p.data)
+			datapath.send_msg(out)
 			return
 
 		dpid = datapath.id
@@ -124,7 +143,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		actions = [parser.OFPActionSetField(ipv4_src='10.0.0.10')]
 		actions += [parser.OFPActionOutput(in_port)]
-		match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, in_port=out_port, ipv4_src=targIP)
+		match = parser.OFPMatch(eth_type=ether_types.ETH_TYPE_IP, in_port=out_port, ipv4_dst=srcIP)
 		self.add_flow(datapath, 1, match, actions)
 
 #		targEth = '00:00:00:00:00:05'
